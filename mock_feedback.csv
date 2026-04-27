@@ -1,0 +1,21 @@
+feedback,tier,subscription_value
+"The app crashes every time I open the login page.","Enterprise",5000
+"I can't see my billing history, it shows a 404 error.","Pro",500
+"Login is extremely slow on mobile data.","Enterprise",5000
+"We need a dark mode, the current UI is too bright.","Free",0
+"The billing page doesn't let me update my credit card.","Enterprise",5000
+"App crashes on startup for our whole team.","Enterprise",5000
+"Mobile login takes forever to load.","Pro",500
+"Dark mode would be a great addition.","Free",0
+"Payment failed but money was deducted.","Enterprise",5000
+"Can't login on my iPhone 15.","Enterprise",5000
+"UI is too bright at night.","Pro",500
+"My subscription tier didn't update after payment.","Pro",500
+"Login button is non-responsive.","Enterprise",5000
+"Need a way to search archived tickets.","Enterprise",5000
+"The search function for archives is missing.","Pro",500
+"Payment gateway is timed out.","Enterprise",5000
+"I want dark mode for the dashboard.","Free",0
+"Login crash on Android 14.","Enterprise",5000
+"Billing issues are preventing us from upgrading.","Enterprise",5000
+"The archive search doesn't work.","Pro",500

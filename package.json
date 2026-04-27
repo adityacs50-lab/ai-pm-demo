@@ -1,0 +1,41 @@
+{
+  "name": "ai-pm-tool",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google/generative-ai": "latest",
+    "@neondatabase/serverless": "^1.1.0",
+    "@slack/web-api": "^7.15.1",
+    "@tailwindcss/postcss": "^4.2.4",
+    "@types/papaparse": "^5.5.2",
+    "autoprefixer": "^10.5.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.11.0",
+    "next": "latest",
+    "next-auth": "^4.24.14",
+    "octokit": "^5.0.5",
+    "papaparse": "^5.5.3",
+    "pdf-parse": "^2.4.5",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwind-merge": "^3.5.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "postcss": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  }
+}
