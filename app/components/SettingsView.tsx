@@ -10,7 +10,8 @@ import {
   Save, 
   CircleCheck,
   Lock,
-  MessageSquare
+  MessageSquare,
+  Database
 } from "lucide-react";
 
 export default function SettingsView() {
@@ -69,6 +70,34 @@ export default function SettingsView() {
                     defaultValue="https://hooks.slack.com/services/T0123/B456/XYZ"
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Webhook Endpoints */}
+        <section className="space-y-6">
+          <div className="flex items-center gap-2 ml-2">
+            <Database size={14} className="text-neutral-600" />
+            <h3 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em]">Automated Ingest Endpoints</h3>
+          </div>
+
+          <div className="panel-glass p-8 rounded-[2.5rem] space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5">
+                <div>
+                  <p className="text-xs font-bold text-white">Universal Webhook URL</p>
+                  <p className="text-[10px] font-mono text-neutral-500 mt-1">https://{typeof window !== 'undefined' ? window.location.host : 'ai-pm-triage.vercel.app'}/api/connectors/webhook</p>
+                </div>
+                <button className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase transition-all">Copy URL</button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5">
+                <div>
+                  <p className="text-xs font-bold text-white">Email Inbound Endpoint</p>
+                  <p className="text-[10px] font-mono text-neutral-500 mt-1">https://{typeof window !== 'undefined' ? window.location.host : 'ai-pm-triage.vercel.app'}/api/connectors/email</p>
+                </div>
+                <button className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase transition-all">Copy URL</button>
               </div>
             </div>
           </div>

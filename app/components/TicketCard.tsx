@@ -1,16 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-  Copy, 
-  ExternalLink, 
-  MessageSquare, 
-  Download, 
-  CircleAlert, 
-  CircleCheck,
-  TrendingUp,
-  User as UserIcon
-} from "lucide-react";
 import { useState } from "react";
 
 interface TicketCardProps {
@@ -21,167 +11,124 @@ interface TicketCardProps {
 }
 
 export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStatus }: TicketCardProps) {
-  const [activeTab, setActiveTab] = useState<"ticket" | "prd">("ticket");
-
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 10 },
-    show: { opacity: 1, y: 0 }
-  };
+  if (!ticket) return null;
 
   return (
-    <motion.div 
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="card-glass p-6 rounded-[2rem] space-y-6"
-    >
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-2xl ${
-            ticket.severity === 'CRITICAL' ? 'bg-red-500/10 text-red-500 animate-pulse-critical' :
-            ticket.severity === 'HIGH' ? 'bg-orange-500/10 text-orange-500' :
-            'bg-emerald-500/10 text-emerald-500'
+    <div className="space-y-6">
+      {/* Header Card */}
+      <div className="bg-[#111111] border border-[#222222] rounded-[12px] p-6 shadow-sm flex flex-col gap-4">
+        <div className="flex justify-between items-start gap-4">
+          <h2 className="font-h2 text-h2 text-white leading-tight italic uppercase tracking-tight">{ticket.title}</h2>
+          <div className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+            ticket.severity === 'Critical' 
+              ? 'bg-red-500/10 border-red-500/20 text-red-500' 
+              : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
           }`}>
-            <CircleAlert size={24} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-black text-neutral-600 uppercase tracking-widest">TKT-{Math.floor(1000 + Math.random() * 9000)}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                ticket.severity === 'CRITICAL' ? 'bg-red-500 text-white' :
-                ticket.severity === 'HIGH' ? 'bg-orange-500 text-white' :
-                'bg-emerald-500 text-white'
-              }`}>{ticket.severity}</span>
-            </div>
-            <h3 className="text-xl font-black text-white mt-1 leading-tight">{ticket.title}</h3>
+            <span className={`w-2 h-2 rounded-full ${ticket.severity === 'Critical' ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
+            <span className="font-mono text-[10px] font-bold tracking-wider uppercase">{ticket.severity}</span>
           </div>
         </div>
-        
-        <div className="flex bg-white/5 p-1 rounded-xl">
-          <button 
-            onClick={() => setActiveTab('ticket')} 
-            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === 'ticket' ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'
-            }`}
-          >
-            Ticket
-          </button>
-          <button 
-            onClick={() => setActiveTab('prd')} 
-            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === 'prd' ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'
-            }`}
-          >
-            PRD
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {ticket.labels?.map((label: string) => (
+            <span key={label} className="px-2.5 py-1 rounded-[6px] bg-[#1a1a1a] border border-[#333333] text-[10px] text-[#aaaaaa] font-black uppercase tracking-widest">
+              {label}
+            </span>
+          ))}
+        </div>
+        {ticket.securityRisk && (
+          <div className="mt-2 flex items-center gap-3 bg-red-950/20 border border-red-900/50 p-3 rounded-[8px]">
+            <span className="material-symbols-outlined text-red-500 text-[20px]">lock_open</span>
+            <p className="font-body-main text-[11px] text-red-200 uppercase tracking-wide font-bold">
+              {ticket.securityRisk}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Business Impact Card */}
+      <div className="bg-[#111111] border border-[#222222] rounded-[12px] p-6 flex items-start gap-5">
+        <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined text-emerald-500">payments</span>
+        </div>
+        <div>
+          <h3 className="font-label-caps text-label-caps text-[#888888] mb-1">BUSINESS IMPACT ANALYSIS</h3>
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="text-3xl font-bold text-emerald-400 font-mono italic">
+              ${ticket.businessImpact?.mrrAtRisk?.toLocaleString() || 0}
+            </span>
+            <span className="text-[10px] text-[#666666] font-black uppercase tracking-widest">MRR at Risk</span>
+          </div>
+          <p className="font-body-muted text-[12px] text-[#aaaaaa] leading-relaxed italic">
+            {ticket.businessImpact?.priorityReasoning}
+          </p>
         </div>
       </div>
 
-      {activeTab === 'ticket' ? (
-        <>
-          {/* Metadata Grid */}
-          <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-white/2 p-4 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-2 mb-1">
-                <TrendingUp size={12} className="text-[#4f6ef7]" />
-                <span className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">MRR Risk</span>
-              </div>
-              <p className="text-lg font-black text-white">${ticket.businessImpact?.mrrAtRisk?.toLocaleString() || 0}</p>
+      {/* Acceptance Criteria Card */}
+      <div className="bg-[#111111] border border-[#222222] rounded-[12px] overflow-hidden flex flex-col">
+        <div className="bg-[#1a1a1a] px-6 py-3 border-b border-[#222222] flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-[#888888]">checklist</span>
+          <h3 className="font-label-caps text-label-caps text-[#dddddd]">ACCEPTANCE CRITERIA</h3>
+        </div>
+        <div className="divide-y divide-[#222222]/50">
+          {ticket.acceptanceCriteria?.map((ac: string, i: number) => (
+            <div key={i} className="flex items-start gap-4 p-4 hover:bg-[#161616] transition-colors">
+              <span className="font-mono text-[10px] text-[#555555] pt-0.5">{(i+1).toString().padStart(2, '0')}</span>
+              <p className="font-body-main text-[13px] text-[#cccccc]">{ac}</p>
             </div>
-            <div className="bg-white/2 p-4 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-2 mb-1">
-                <UserIcon size={12} className="text-indigo-400" />
-                <span className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">Assignee</span>
-              </div>
-              <p className="text-sm font-bold text-neutral-300">Sr. Backend Eng</p>
-            </div>
-            <div className="bg-white/2 p-4 rounded-2xl border border-white/5 col-span-2 md:col-span-1">
-              <span className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-1 block">Labels</span>
-              <div className="flex flex-wrap gap-1">
-                {ticket.labels?.map((l: string) => (
-                  <span key={l} className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-[9px] font-bold rounded-lg border border-indigo-500/20">{l}</span>
-                ))}
-              </div>
-            </div>
-          </motion.div>
+          ))}
+        </div>
+      </div>
 
-          {/* Details */}
-          <motion.div variants={item} className="space-y-6">
-            <div className="space-y-3">
-              <h4 className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#4f6ef7]" />
-                Acceptance Criteria
-              </h4>
-              <div className="space-y-2">
-                {ticket.acceptanceCriteria?.map((ac: string, i: number) => (
-                  <div key={i} className="flex gap-3 text-xs text-neutral-400 bg-white/2 p-3 rounded-xl border border-white/5">
-                    <CircleCheck size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                    <p>{ac}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* PRD Card */}
+      <div className="bg-[#050505] border border-[#222222] rounded-[12px] overflow-hidden flex flex-col">
+        <div className="bg-[#111111] px-4 py-2 border-b border-[#222222] flex justify-between items-center">
+          <span className="font-mono text-[10px] text-[#888888] uppercase tracking-widest">AI Generated PRD Spec</span>
+          <button className="text-[#888888] hover:text-white transition-colors">
+            <span className="material-symbols-outlined text-[16px]">content_copy</span>
+          </button>
+        </div>
+        <div className="p-6 font-mono text-[11px] text-[#aaaaaa] leading-relaxed overflow-x-auto whitespace-pre-wrap italic bg-black/40">
+          {ticket.prd}
+        </div>
+      </div>
 
-            {ticket.securityRisk && (
-              <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-2xl">
-                <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Security Alert</p>
-                <p className="text-xs text-red-200/60 italic leading-relaxed">"{ticket.securityRisk}"</p>
-              </div>
-            )}
-          </motion.div>
-        </>
-      ) : (
-        <motion.div variants={item} className="bg-black/40 p-6 rounded-[2rem] border border-white/5 h-[400px] overflow-y-auto scrollbar-thin">
-          <pre className="text-xs text-neutral-400 font-mono whitespace-pre-wrap leading-relaxed italic">
-            {ticket.prd || "PRD generation available for Enterprise users."}
-          </pre>
-        </motion.div>
-      )}
-
-      {/* Action Bar */}
-      <motion.div variants={item} className="pt-6 border-t border-white/5 flex flex-wrap gap-3">
+      {/* Sync Card */}
+      <div className="bg-[#111111] border border-[#222222] rounded-[12px] p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 text-left w-full">
+          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+            <svg className="w-5 h-5 text-white opacity-80" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-white uppercase tracking-tight">Sync to Engineering</h3>
+            <p className="text-[10px] text-[#888888] mt-0.5 uppercase tracking-widest font-black">Export to GitHub / Jira / Linear</p>
+          </div>
+        </div>
+        
         {pushStatus ? (
           <a 
             href={pushStatus.url} 
             target="_blank" 
-            className="flex-1 min-w-[160px] py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-center text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 px-6 rounded-[8px] transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest"
           >
-            <ExternalLink size={14} />
-            View Issue #{pushStatus.number}
+            <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+            Issue #{pushStatus.number}
           </a>
         ) : (
           <button 
             onClick={onPushToGitHub}
             disabled={isPushing}
-            className="flex-1 min-w-[160px] py-3 bg-white text-black hover:bg-neutral-200 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
+            className="w-full sm:w-auto bg-[#1a1a1a] border border-[#333333] hover:bg-[#222222] text-white font-black py-2 px-6 rounded-[8px] transition-colors flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest disabled:opacity-50"
           >
-            {isPushing ? (
-              <div className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-            ) : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>}
-            Push to GitHub
+            {isPushing ? 'Pushing...' : (
+              <>
+                <span className="material-symbols-outlined text-[18px]">sync</span>
+                Push Ticket
+              </>
+            )}
           </button>
         )}
-        <button className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-neutral-400 transition-colors">
-          <MessageSquare size={16} />
-        </button>
-        <button className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-neutral-400 transition-colors">
-          <Download size={16} />
-        </button>
-        <button className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-neutral-400 transition-colors ml-auto">
-          <Copy size={16} />
-        </button>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

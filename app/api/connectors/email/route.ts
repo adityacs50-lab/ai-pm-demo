@@ -1,73 +1,67 @@
 import { NextResponse } from "next/server";
 
-// Email Forwarding Connector
-// Setup: Configure your email service to forward emails to:
-//        POST https://your-domain/api/connectors/email
-//
-// Works with: SendGrid Inbound Parse, Mailgun Routes, Postmark Inbound,
-//             or any service that can forward emails as JSON webhooks.
-//
-// Manual use: Forward an email by POSTing JSON:
-//   { "from": "user@example.com", "subject": "Bug report", "body": "The app crashes..." }
+// Email Inbound Connector
+// Setup: 1. Configure Inbound Parse in your email provider (SendGrid, Postmark, Resend, etc.)
+//        2. Set the Destination URL to: https://your-domain/api/connectors/email
+//        3. Emails sent to your triage address will now automatically create tickets.
 
 export async function POST(req: Request) {
   try {
+    // Standard Inbound Email providers usually send data as multipart/form-data
     const contentType = req.headers.get("content-type") || "";
-    let emailData: { from?: string; subject?: string; body?: string; text?: string; html?: string };
+    
+    let emailSubject = "";
+    let emailBody = "";
+    let senderEmail = "";
 
-    if (contentType.includes("application/json")) {
-      emailData = await req.json();
-    } else if (contentType.includes("multipart/form-data")) {
-      // Handle SendGrid/Mailgun style form data
+    if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
       const formData = await req.formData();
-      emailData = {
-        from: formData.get("from") as string || formData.get("sender") as string || "",
-        subject: formData.get("subject") as string || "",
-        body: formData.get("text") as string || formData.get("body") as string || "",
-        html: formData.get("html") as string || "",
-      };
+      emailSubject = formData.get("subject")?.toString() || "No Subject";
+      emailBody = formData.get("text")?.toString() || formData.get("html")?.toString() || "";
+      senderEmail = formData.get("from")?.toString() || "unknown@sender.com";
     } else {
-      return NextResponse.json({ error: "Unsupported content type" }, { status: 400 });
+      // JSON format (some providers)
+      const body = await req.json();
+      emailSubject = body.subject || "No Subject";
+      emailBody = body.text || body.body || "";
+      senderEmail = body.from || body.sender || "unknown@sender.com";
     }
 
-    const feedbackText = [
-      emailData.subject ? `Subject: ${emailData.subject}` : "",
-      emailData.body || emailData.text || "",
-      emailData.from ? `\nFrom: ${emailData.from}` : "",
-    ].filter(Boolean).join("\n");
-
-    if (!feedbackText.trim()) {
+    if (!emailBody) {
       return NextResponse.json({ error: "Empty email body" }, { status: 400 });
     }
 
-    // Triage the email content
-    const triageFormData = new FormData();
-    triageFormData.append("feedback", feedbackText);
-    triageFormData.append("customerTier", "Enterprise"); // Emails usually from paying customers
+    const fullFeedback = `Subject: ${emailSubject}\n\nFrom: ${senderEmail}\n\nContent:\n${emailBody}`;
 
+    // Triage using AI
     const origin = new URL(req.url).origin;
     const triageResponse = await fetch(`${origin}/api/triage`, {
       method: "POST",
-      body: triageFormData,
+      body: new URLSearchParams({
+        feedback: fullFeedback,
+        customerTier: "Enterprise", // Default for direct email signals
+      }),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
     });
 
     if (!triageResponse.ok) {
-      const errText = await triageResponse.text();
-      console.error("Email triage failed:", errText);
-      return NextResponse.json({ error: "Triage failed", details: errText }, { status: 500 });
+      const errorText = await triageResponse.text();
+      throw new Error(`AI Triage failed: ${errorText}`);
     }
 
     const triageResult = await triageResponse.json();
 
-    console.log(`📧 Email Connector: Triaged email from ${emailData.from || "unknown"} → "${triageResult.title}" (${triageResult.severity})`);
+    console.log(`📧 Email: Triaged signal from ${senderEmail} → "${triageResult.title}"`);
 
     return NextResponse.json({
       success: true,
-      source: "email",
-      from: emailData.from,
-      subject: emailData.subject,
-      triageResult,
+      ticketId: triageResult.id,
+      title: triageResult.title,
+      severity: triageResult.severity
     });
+
   } catch (error: any) {
     console.error("Email Connector Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
