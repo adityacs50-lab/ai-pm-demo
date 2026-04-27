@@ -3,6 +3,9 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 interface TicketCardProps {
   ticket: any;
   onPushToGitHub: () => void;
@@ -37,8 +40,8 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
         </div>
         {ticket.securityRisk && (
           <div className="mt-2 flex items-center gap-3 bg-red-950/20 border border-red-900/50 p-3 rounded-[8px]">
-            <span className="material-symbols-outlined text-red-500 text-[20px]">lock_open</span>
-            <p className="font-body-main text-[11px] text-red-200 uppercase tracking-wide font-bold">
+            <span className="material-symbols-outlined text-red-500 text-[20px]">lock</span>
+            <p className="font-body-main text-[11px] text-red-200 leading-relaxed italic">
               {ticket.securityRisk}
             </p>
           </div>
@@ -83,13 +86,15 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
       {/* PRD Card */}
       <div className="bg-[#050505] border border-[#222222] rounded-[12px] overflow-hidden flex flex-col">
         <div className="bg-[#111111] px-4 py-2 border-b border-[#222222] flex justify-between items-center">
-          <span className="font-mono text-[10px] text-[#888888] uppercase tracking-widest">AI Generated PRD Spec</span>
+          <span className="font-mono text-[10px] text-[#888888] uppercase tracking-widest font-black">Surgical PRD Spec</span>
           <button className="text-[#888888] hover:text-white transition-colors">
             <span className="material-symbols-outlined text-[16px]">content_copy</span>
           </button>
         </div>
-        <div className="p-6 font-mono text-[11px] text-[#aaaaaa] leading-relaxed overflow-x-auto whitespace-pre-wrap italic bg-black/40">
-          {ticket.prd}
+        <div className="p-8 prose prose-invert prose-sm max-w-none prose-headings:italic prose-headings:uppercase prose-headings:tracking-tighter prose-p:text-neutral-400 prose-li:text-neutral-400">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {ticket.prd}
+          </ReactMarkdown>
         </div>
       </div>
 

@@ -3,8 +3,8 @@
 import { useSession, signOut } from "next-auth/react";
 
 interface TopbarProps {
-  currentView: "INPUT" | "RESULT" | "BATCH" | "SETTINGS";
-  onViewChange: (view: "INPUT" | "RESULT" | "BATCH" | "SETTINGS") => void;
+  currentView: "INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY";
+  onViewChange: (view: "INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY") => void;
 }
 
 export default function Topbar({ currentView, onViewChange }: TopbarProps) {

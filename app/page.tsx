@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import BatchDashboard from "./components/BatchDashboard";
 import SettingsView from "./components/SettingsView";
+import HistoryView from "./components/HistoryView";
 import InputScreen from "./components/InputScreen";
 import OutputScreen from "./components/OutputScreen";
 
@@ -20,7 +21,7 @@ export default function Home() {
   const [isPushing, setIsPushing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pushStatus, setPushStatus] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<"INPUT" | "RESULT" | "BATCH" | "SETTINGS">("INPUT");
+  const [currentView, setCurrentView] = useState<"INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY">("INPUT");
 
   const handleGenerate = async () => {
     if (!feedback.trim() && !file) return;
@@ -161,9 +162,19 @@ export default function Home() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="flex-1 h-full"
+                className="flex-1 h-full overflow-y-auto"
               >
                 <BatchDashboard />
+              </motion.div>
+            ) : currentView === "HISTORY" ? (
+              <motion.div 
+                key="history"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="flex-1 h-full overflow-y-auto"
+              >
+                <HistoryView onSelect={handleSelectHistory} />
               </motion.div>
             ) : (
               <motion.div 
@@ -171,7 +182,7 @@ export default function Home() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="flex-1 h-full"
+                className="flex-1 h-full overflow-y-auto"
               >
                 <SettingsView />
               </motion.div>

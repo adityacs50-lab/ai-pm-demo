@@ -5,14 +5,14 @@ import { motion } from "framer-motion";
 interface SidebarProps {
   onSelectHistory: (ticket: any) => void;
   onNewTriage: () => void;
-  onViewChange: (view: "INPUT" | "RESULT" | "BATCH" | "SETTINGS") => void;
+  onViewChange: (view: "INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY") => void;
   currentView: string;
 }
 
 export default function Sidebar({ onSelectHistory, onNewTriage, onViewChange, currentView }: SidebarProps) {
   const navItems = [
     { label: 'Dashboard', id: 'INPUT', icon: 'emergency' },
-    { label: 'History', id: 'HISTORY_VIEW', icon: 'history' }, // Dummy ID for history view logic
+    { label: 'History', id: 'HISTORY', icon: 'history' },
     { label: 'Analytics', id: 'BATCH', icon: 'query_stats' },
     { label: 'Settings', id: 'SETTINGS', icon: 'settings' },
   ];
@@ -33,14 +33,7 @@ export default function Sidebar({ onSelectHistory, onNewTriage, onViewChange, cu
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => {
-              if (item.id === 'HISTORY_VIEW') {
-                // Logic to toggle history visibility if needed, or just switch to INPUT
-                onViewChange('INPUT');
-              } else {
-                onViewChange(item.id as any);
-              }
-            }}
+            onClick={() => onViewChange(item.id as any)}
             className={`
               w-full flex items-center gap-3 px-3 py-3 md:py-2 border-l-2 rounded-r-lg group transition-all font-mono text-[10px] uppercase tracking-widest
               ${(currentView === item.id || (item.id === 'INPUT' && currentView === 'RESULT'))
