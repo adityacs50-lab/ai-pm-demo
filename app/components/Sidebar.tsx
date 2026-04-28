@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 interface SidebarProps {
   onSelectHistory: (ticket: any) => void;
   onNewTriage: () => void;
-  onViewChange: (view: "INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY") => void;
+  onViewChange: (view: "INPUT" | "RESULT" | "SETTINGS" | "HISTORY") => void;
   currentView: string;
 }
 
@@ -13,7 +13,6 @@ export default function Sidebar({ onSelectHistory, onNewTriage, onViewChange, cu
   const navItems = [
     { label: 'Dashboard', id: 'INPUT', icon: 'emergency' },
     { label: 'History', id: 'HISTORY', icon: 'history' },
-    { label: 'Analytics', id: 'BATCH', icon: 'query_stats' },
     { label: 'Settings', id: 'SETTINGS', icon: 'settings' },
   ];
 
@@ -25,7 +24,7 @@ export default function Sidebar({ onSelectHistory, onNewTriage, onViewChange, cu
           className="w-full bg-white text-[#0a0a0a] font-medium py-2 px-4 rounded-[8px] hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
         >
           <span className="material-symbols-outlined text-[18px]">add</span>
-          New Ticket
+          New Discovery
         </button>
       </div>
 
@@ -48,11 +47,21 @@ export default function Sidebar({ onSelectHistory, onNewTriage, onViewChange, cu
       </nav>
 
       <div className="mt-auto px-2 space-y-1 pb-4">
-        <a className="text-[#888888] hover:bg-[#1a1a1a] hover:text-white transition-all font-mono text-[10px] uppercase tracking-widest flex items-center gap-3 px-3 py-2 border-l-2 border-transparent rounded-r-lg group" href="#">
+        <a 
+          className="text-[#888888] hover:bg-[#1a1a1a] hover:text-white transition-all font-mono text-[10px] uppercase tracking-widest flex items-center gap-3 px-3 py-2 border-l-2 border-transparent rounded-r-lg group" 
+          href="https://github.com/adityacs50-lab/ai-pm-demo"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <span className="material-symbols-outlined text-[20px]">menu_book</span>
           <span className="hidden md:inline">Documentation</span>
         </a>
-        <a className="text-[#888888] hover:bg-[#1a1a1a] hover:text-white transition-all font-mono text-[10px] uppercase tracking-widest flex items-center gap-3 px-3 py-2 border-l-2 border-transparent rounded-r-lg group" href="#">
+        <a 
+          className="text-[#888888] hover:bg-[#1a1a1a] hover:text-white transition-all font-mono text-[10px] uppercase tracking-widest flex items-center gap-3 px-3 py-2 border-l-2 border-transparent rounded-r-lg group" 
+          href="https://github.com/adityacs50-lab/ai-pm-demo/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <span className="material-symbols-outlined text-[20px]">contact_support</span>
           <span className="hidden md:inline">Support</span>
         </a>

@@ -39,7 +39,7 @@ export default function HistoryView({ onSelect }: HistoryViewProps) {
   return (
     <div className="max-w-5xl mx-auto py-10 space-y-12">
       <header className="px-2">
-        <h2 className="text-4xl font-black tracking-tighter text-white uppercase italic">Neural <span className="text-blue-600">History</span></h2>
+        <h2 className="text-4xl font-black tracking-tighter text-white uppercase italic">Discovery <span className="text-blue-600">History</span></h2>
         <p className="text-[#888888] text-xs font-black uppercase tracking-[0.3em] mt-1">Audit log of all processed signals and generated tickets</p>
       </header>
 
@@ -87,7 +87,7 @@ export default function HistoryView({ onSelect }: HistoryViewProps) {
           <div className="h-64 bg-[#111111] border border-dashed border-[#222222] rounded-[2rem] flex flex-col items-center justify-center text-center space-y-4 p-12">
             <span className="material-symbols-outlined text-4xl text-[#222222]">history_toggle_off</span>
             <p className="text-[#555555] text-[10px] font-black uppercase tracking-widest leading-relaxed">
-              No audit signal detected.<br/>Process a feedback signal to populate the neural history.
+              No audit signal detected.<br/>Process a feedback signal to populate the discovery history.
             </p>
           </div>
         )}

@@ -3,161 +3,99 @@ import { getDb } from "@/app/lib/db";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-// GET: Fetch triage history (paginated)
+// GET: Fetch analysis history (paginated)
 export async function GET(req: Request) {
   try {
     const sql = getDb();
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
-    const type = searchParams.get("type"); // "individual" | "batch" | null (all)
 
     const session = await getServerSession(authOptions);
-    const userEmail = session?.user?.email;
+    const userEmail = session?.user?.email || "anonymous";
 
-    let tickets;
-    if (type) {
-      tickets = await sql`
-        SELECT id, type, title, severity, labels, mrr_at_risk, customer_tier, 
-               github_issue_number, github_issue_url, created_at
-        FROM tickets 
-        WHERE type = ${type} AND (user_email = ${userEmail} OR user_email IS NULL)
-        ORDER BY created_at DESC 
-        LIMIT ${limit} OFFSET ${offset}
-      `;
-    } else {
-      tickets = await sql`
-        SELECT id, type, title, severity, labels, mrr_at_risk, customer_tier, 
-               github_issue_number, github_issue_url, created_at
-        FROM tickets 
-        WHERE user_email = ${userEmail} OR user_email IS NULL
-        ORDER BY created_at DESC 
-        LIMIT ${limit} OFFSET ${offset}
-      `;
-    }
-
-    // Get counts
-    const countResult = await sql`SELECT COUNT(*) as total FROM tickets`;
-    const total = parseInt(countResult[0].total);
-
-    // Get total MRR at risk
-    const mrrResult = await sql`SELECT COALESCE(SUM(mrr_at_risk), 0) as total_mrr FROM tickets`;
-    const totalMrr = parseFloat(mrrResult[0].total_mrr);
-
-    // Get severity breakdown
-    const severityBreakdown = await sql`
-      SELECT severity, COUNT(*) as count 
-      FROM tickets 
-      GROUP BY severity 
-      ORDER BY count DESC
+    // Join transcripts and analyses
+    const history = await sql`
+      SELECT t.id, t.content as raw_feedback, t.created_at, 
+             a.full_result
+      FROM transcripts t
+      LEFT JOIN analyses a ON t.id = a.transcript_id
+      WHERE t.user_id = ${userEmail}
+      ORDER BY t.created_at DESC 
+      LIMIT ${limit} OFFSET ${offset}
     `;
 
+    const countResult = await sql`SELECT COUNT(*) as total FROM transcripts WHERE user_id = ${userEmail}`;
+    const total = parseInt(countResult[0].total);
+
+    // Map the database output to the format expected by the frontend HistoryView
+    const mappedTickets = history.map(row => {
+      const parsed = typeof row.full_result === 'string' ? JSON.parse(row.full_result) : (row.full_result || {});
+      return {
+        id: row.id,
+        title: parsed.title || "Pending Analysis...",
+        severity: "Discovery", // Mocking old severity field for UI compatibility
+        labels: [],
+        mrr_at_risk: 0,
+        customer_tier: "Free",
+        created_at: row.created_at
+      };
+    });
+
     return NextResponse.json({
-      tickets,
+      tickets: mappedTickets,
       pagination: { total, limit, offset },
       stats: {
         totalTickets: total,
-        totalMrrAtRisk: totalMrr,
-        severityBreakdown,
+        totalMrrAtRisk: 0,
+        severityBreakdown: [],
       }
     });
   } catch (error: any) {
-    // If table doesn't exist, return empty
     if (error.message?.includes("does not exist")) {
-      return NextResponse.json({
-        tickets: [],
-        pagination: { total: 0, limit: 20, offset: 0 },
-        stats: { totalTickets: 0, totalMrrAtRisk: 0, severityBreakdown: [] }
-      });
+      return NextResponse.json({ tickets: [], pagination: { total: 0, limit: 20, offset: 0 }, stats: { totalTickets: 0 } });
     }
-    console.error("History API Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch history", details: error.message },
-      { status: 500 }
-    );
+    console.error("[HISTORY API ERROR]:", error.stack || error.message);
+    return NextResponse.json({ error: "Internal Server Error fetching history." }, { status: 500 });
   }
 }
 
-// POST: Save a triage result
+// POST: Save a discovery result
 export async function POST(req: Request) {
   try {
     const sql = getDb();
     const body = await req.json();
-    const { type, result, customerTier, rawFeedback, filename, userEmail } = body;
+    const { result, rawFeedback, userEmail } = body;
+    
+    // Default to anonymous if no user Email
+    const userId = userEmail || "anonymous";
 
-    if (type === "batch" && result.clusters) {
-      // Save batch analysis
-      const batchRows = await sql`
-        INSERT INTO batch_analyses (filename, row_count, cluster_count, total_mrr_at_risk, global_summary, full_result, user_email)
-        VALUES (
-          ${filename || "uploaded.csv"}, 
-          ${result.clusters.reduce((sum: number, c: any) => sum + c.count, 0)},
-          ${result.clusters.length},
-          ${result.clusters.reduce((sum: number, c: any) => sum + c.totalMrrAtRisk, 0)},
-          ${result.globalSummary},
-          ${JSON.stringify(result)},
-          ${userEmail || null}
-        )
-        RETURNING id
-      `;
-      const batchId = batchRows[0].id;
+    // 1. Save Transcript
+    const sessionId = crypto.randomUUID();
+    const transcriptRows = await sql`
+      INSERT INTO transcripts (user_id, content, status, session_id)
+      VALUES (${userId}, ${rawFeedback || 'N/A'}, 'analyzed', ${sessionId})
+      RETURNING id
+    `;
+    const transcriptId = transcriptRows[0].id;
 
-      // Save each cluster as a ticket
-      for (const cluster of result.clusters) {
-        await sql`
-          INSERT INTO tickets (type, title, severity, labels, mrr_at_risk, raw_feedback, full_result, user_email)
-          VALUES (
-            'batch',
-            ${cluster.title},
-            ${cluster.severity},
-            ${JSON.stringify(cluster.suggestedLabels)},
-            ${cluster.totalMrrAtRisk},
-            ${cluster.summary},
-            ${JSON.stringify(cluster)},
-            ${userEmail || null}
-          )
-        `;
+    // 2. Save Analysis
+    await sql`
+      INSERT INTO analyses (
+        transcript_id, 
+        full_result
+      )
+      VALUES (
+        ${transcriptId},
+        ${JSON.stringify(result)}
+      )
+    `;
 
-        await sql`
-          INSERT INTO clusters (batch_id, title, severity, user_count, total_mrr_at_risk, summary, labels)
-          VALUES (
-            ${batchId},
-            ${cluster.title},
-            ${cluster.severity},
-            ${cluster.count},
-            ${cluster.totalMrrAtRisk},
-            ${cluster.summary},
-            ${JSON.stringify(cluster.suggestedLabels)}
-          )
-        `;
-      }
-
-      return NextResponse.json({ success: true, batchId, clustersStored: result.clusters.length });
-
-    } else {
-      // Save individual ticket
-      const rows = await sql`
-        INSERT INTO tickets (type, title, severity, labels, mrr_at_risk, customer_tier, raw_feedback, full_result, user_email)
-        VALUES (
-          'individual',
-          ${result.title},
-          ${result.severity},
-          ${JSON.stringify(result.labels)},
-          ${result.businessImpact?.mrrAtRisk || 0},
-          ${customerTier || 'Free'},
-          ${rawFeedback || ''},
-          ${JSON.stringify(result)},
-          ${userEmail || null}
-        )
-        RETURNING id
-      `;
-
-      return NextResponse.json({ success: true, ticketId: rows[0].id });
-    }
+    return NextResponse.json({ success: true, transcriptId });
   } catch (error: any) {
-    console.error("Save Error:", error);
+    console.error("[HISTORY SAVE ERROR]:", error.stack || error.message);
     return NextResponse.json(
-      { error: "Failed to save result", details: error.message },
+      { error: "Internal Server Error saving analysis." },
       { status: 500 }
     );
   }

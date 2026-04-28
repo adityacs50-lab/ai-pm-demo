@@ -3,25 +3,83 @@ import { Octokit } from "octokit";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import Fuse from "fuse.js";
+import fs from "fs";
+import path from "path";
+import historicalBugs from "@/rag_database/fintech_bugs.json";
+import { rateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
+
+// Vercel Serverless Config to prevent 10s timeout crashes on heavy RAG/Gemini calls
+export const maxDuration = 60;
+
+const limiter = rateLimit({
+  interval: 60 * 60 * 1000, // 1 Hour
+  uniqueTokenPerInterval: 500, // Max 500 unique IPs/Users per hour
+});
+
+// Zod Schema for strict input sanitization
+const TriageInputSchema = z.object({
+  transcripts: z.string().optional(),
+  customerTier: z.string().optional(),
+  isBatch: z.boolean().optional(),
+});
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const octokit = new Octokit({ auth: process.env.GITHUB_PAT });
 
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    const feedback = formData.get("feedback") as string;
-    const file = formData.get("file") as File | null;
-    const isBatchEarly = formData.get("isBatch") === "true";
+    const session = await getServerSession(authOptions);
+    const isAuth = !!session;
 
-    if (!feedback && !file && !isBatchEarly) {
+    const formData = await req.formData();
+    
+    // 1. ZOD INPUT SANITIZATION & VALIDATION
+    const rawTranscriptsStr = formData.get("transcripts") as string;
+    const isBatchEarly = formData.get("isBatch") === "true";
+    const rawTier = formData.get("customerTier") as string || "Free";
+
+    const validationResult = TriageInputSchema.safeParse({
+      transcripts: formData.get("transcripts") as string,
+      customerTier: rawTier,
+      isBatch: isBatchEarly
+    });
+
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: "Missing both feedback text and file" },
+        { error: "Bad Request", details: validationResult.error.issues },
         { status: 400 }
       );
     }
 
-    const customerTier = formData.get("customerTier") as string || "Free";
+    let transcripts: string[] = [];
+    try {
+      if (validationResult.data.transcripts) {
+        transcripts = JSON.parse(validationResult.data.transcripts);
+      }
+    } catch (e) {
+      console.error("Failed to parse transcripts JSON", e);
+    }
+    const combinedInput = transcripts.map((t, i) => `--- TRANSCRIPT ${i + 1} ---\n${t}`).join('\n\n');
+    const customerTier = validationResult.data.customerTier || "Free";
+
+
+    // 2. RATE LIMITING (3/hr Unauth, 20/hr Auth)
+    try {
+      const userIdentifier = isAuth ? session.user?.email : "anonymous_ip_" + (req.headers.get("x-forwarded-for") || "unknown");
+      const limit = isAuth ? 20 : 3;
+      await limiter.check(limit, userIdentifier as string);
+    } catch {
+      return NextResponse.json({ error: "Rate limit exceeded. Maximum quota reached." }, { status: 429 });
+    }
+
+    if (transcripts.length === 0 && !isBatchEarly) {
+      return NextResponse.json(
+        { error: "Missing transcripts" },
+        { status: 400 }
+      );
+    }
 
     // Fetch existing issues for duplicate detection
     let existingIssuesContext = "No existing issues found.";
@@ -39,58 +97,70 @@ export async function POST(req: Request) {
       console.error("Failed to fetch issues for context:", e);
     }
 
+    // --- RAG PIPELINE: LOCAL FINTECH VECTOR DB ---
+    let ragContext = "No highly similar historical bugs found.";
+    try {
+      if (combinedInput && !isBatchEarly) {
+        if (historicalBugs) {
+          const fuse = new Fuse(historicalBugs, {
+            keys: ["issue"],
+            includeScore: true,
+            threshold: 0.6 // Semantic similarity threshold
+          });
+          
+          const results = fuse.search(combinedInput);
+          if (results.length > 0) {
+            const topMatch = results[0].item;
+            ragContext = `
+              SIMILAR HISTORICAL BUG FOUND (ID: ${topMatch.id})
+              Original Issue: ${topMatch.issue}
+              Historical Resolution: ${topMatch.resolution}
+              Previous Severity: ${topMatch.severity}
+              MRR Saved: $${topMatch.mrr_saved}
+              
+              INSTRUCTION: Use this historical resolution to guide your PRD. If this is exactly the same issue, mark it as a regression.
+            `;
+            console.log(`[RAG HIT] Found similar issue: ${topMatch.id}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("RAG Pipeline Error:", e);
+    }
+    // ---------------------------------------------
+
     // Prepare multimodal parts for Gemini
     const parts: any[] = [];
     
-    if (feedback) {
-      parts.push({ text: `Customer Feedback: "${feedback}"` });
+    if (combinedInput) {
+      parts.push({ text: `Analyze the following customer transcripts:\n\n${combinedInput}` });
     }
 
-    if (file) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      let mimeType = file.type || "application/pdf";
-      if (file.name.endsWith(".mp4")) mimeType = "video/mp4";
-      if (file.name.endsWith(".mov")) mimeType = "video/quicktime";
-      
-      parts.push({
-        inlineData: {
-          data: buffer.toString("base64"),
-          mimeType: mimeType,
-        },
-      });
-    }
+
 
     const isBatch = formData.get("isBatch") === "true";
     const batchData = formData.get("batchData") as string | null;
 
-    // Define the individual structured output schema
     const individualSchema = {
-      description: "Triage feedback into a structured bug report with business impact analysis",
+      description: "Synthesize user feedback into a new product feature with agentic handoff tasks",
       type: SchemaType.OBJECT,
       properties: {
-        title: { type: SchemaType.STRING, description: "A concise bug title." },
-        severity: { type: SchemaType.STRING, enum: ["Low", "Medium", "High", "Critical"] },
-        acceptanceCriteria: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-        labels: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-        hiddenRisks: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-        duplicateOf: { type: SchemaType.NUMBER, nullable: true },
-        businessImpact: {
-          type: SchemaType.OBJECT,
-          properties: {
-            mrrAtRisk: { type: SchemaType.NUMBER },
-            priorityReasoning: { type: SchemaType.STRING },
-          },
-          required: ["mrrAtRisk", "priorityReasoning"]
-        },
-        securityRisk: { type: SchemaType.STRING, description: "Detailed description of security threats found, if any." },
-        prd: { type: SchemaType.STRING, description: "A full, professional PRD in Markdown format." }
+        discoverySummary: { type: SchemaType.STRING, description: "The full DISCOVERY SUMMARY block including transcript counts and top problems." },
+        title: { type: SchemaType.STRING, description: "The RECOMMENDED FEATURE title (3-7 words)." },
+        customerJustification: { type: SchemaType.STRING, description: "The full CUSTOMER JUSTIFICATION block including root pain, evidence, frequency, cost of inaction, and signal strength." },
+        technicalArchitecture: { type: SchemaType.STRING, description: "The full TECHNICAL ARCHITECTURE block including UI, Data Model, and API." },
+        agentTasks: { 
+          type: SchemaType.ARRAY, 
+          description: "Specific development tasks for AGENT EXECUTION PLAN.",
+          items: { type: SchemaType.STRING } 
+        }
       },
-      required: ["title", "severity", "acceptanceCriteria", "labels", "hiddenRisks", "businessImpact", "prd"],
+      required: ["discoverySummary", "title", "customerJustification", "technicalArchitecture", "agentTasks"],
     };
 
-    // Define the batch clustering schema
+    // Define the batch clustering schema for "Cursor for PMs"
     const batchSchema = {
-      description: "Consolidated clusters of feedback from a dataset",
+      description: "Consolidate massive user feedback datasets into prioritized feature builds",
       type: SchemaType.OBJECT,
       properties: {
         clusters: {
@@ -98,17 +168,15 @@ export async function POST(req: Request) {
           items: {
             type: SchemaType.OBJECT,
             properties: {
-              title: { type: SchemaType.STRING, description: "Title for this cluster of issues." },
-              count: { type: SchemaType.NUMBER, description: "Number of rows representing this issue." },
-              severity: { type: SchemaType.STRING, enum: ["Low", "Medium", "High", "Critical"] },
-              totalMrrAtRisk: { type: SchemaType.NUMBER, description: "Aggregated MRR risk for this cluster." },
-              summary: { type: SchemaType.STRING, description: "A few sentences describing the common problem." },
-              suggestedLabels: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+              title: { type: SchemaType.STRING, description: "Title of the proposed feature." },
+              count: { type: SchemaType.NUMBER, description: "Number of user interviews/rows asking for this." },
+              customerJustification: { type: SchemaType.STRING, description: "Why we must build this." },
+              agentTasks: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "High level coding tasks for Cursor." }
             },
-            required: ["title", "count", "severity", "totalMrrAtRisk", "summary", "suggestedLabels"]
+            required: ["title", "count", "customerJustification", "agentTasks"]
           }
         },
-        globalSummary: { type: SchemaType.STRING, description: "Overall health of the product based on this dataset." }
+        globalSummary: { type: SchemaType.STRING, description: "Overall product strategy derived from this dataset." }
       },
       required: ["clusters", "globalSummary"]
     };
@@ -127,60 +195,109 @@ export async function POST(req: Request) {
 
     if (isBatch && batchData) {
       systemInstruction = `
-        You are an expert Data Analyst and PM. Analyze the provided CSV dataset of customer feedback.
+        You are an elite 'Cursor for Product Managers' AI Agent. 
+        Your job is to read raw customer interviews and usage data and answer: "What should we build next?"
         
         GOAL:
-        1. Cluster similar feedback rows into 3-5 high-level 'Consolidated Clusters'.
-        2. Count how many users reported each cluster.
-        3. AGGREGATED REVENUE: If the dataset has billing/tier info, sum the MRR at risk for each cluster. 
-           (Assume Enterprise: $5k, Pro: $500, Free: $0 if not specified).
-        4. Return a global summary of the dataset findings.
+        1. Cluster similar feedback rows into 3-5 high-priority 'Features to Build'.
+        2. Count how many users requested each feature.
+        3. Explain exactly why this is worth building based on the feedback.
+        4. Provide high-level development tasks that can be immediately pasted into AI coding agents like Cursor or Claude.
       `;
       finalParts.push({ text: `DATASET TO ANALYZE: ${batchData}` });
     } else {
       systemInstruction = `
-        Analyze this document/feedback. Identify any product bugs or feature requests mentioned and format them into our standard JSON ticket structure.
-        
-        AGENTIC PRD CREATION:
-        You MUST generate a comprehensive PRD in the 'prd' field. 
-        Use the following Markdown structure:
-        # PRD: [Feature Title]
-        ## 1. User Story
-        - As a [user], I want to [action] so that [benefit].
-        ## 2. Technical Constraints
-        - [Constraint 1]
-        - [Constraint 2]
-        ## 3. Edge Cases
-        - [Case 1]
-        ## 4. Success Metrics
-        - [Metric 1]
-        ## 5. Implementation Plan
-        - Step 1: ...
-        - Step 2: ...
+        You are a Principal Product Engineer analyzing MULTIPLE customer 
+        interviews simultaneously to find patterns across all of them.
 
-        BUSINESS IMPACT ANALYSIS:
-        The current reporter is at the '${customerTier}' tier. 
-        Estimate the Monthly Recurring Revenue (MRR) at risk if this issue is not fixed. 
-        - Free: $0-$100 risk.
-        - Pro: $100-$1,000 risk.
-        - Enterprise: $1,000-$20,000+ risk.
-        If it's a security bug or affecting multiple users, escalate the risk.
+        This is a Next.js app. All file paths use /app directory.
+        Example: /app/components/ComponentName.tsx, /app/api/route/route.ts
 
-        DUPLICATE DETECTION:
-        Check the list of existing issues below. If this new feedback describes the same problem as an existing issue, set 'duplicateOf' to that issue's ID.
-        
-        EXISTING ISSUES:
+        You have been given ${transcripts.length} customer transcripts.
+
+        --- HARD RULES ---
+        1. Only surface problems mentioned across MULTIPLE transcripts
+        2. Rank problems by frequency — how many customers mentioned it
+        3. Extract verbatim quotes from DIFFERENT customers for same problem
+        4. Never invent patterns. Every insight needs 2+ customer sources.
+        5. Pick the SINGLE highest frequency problem to build the spec for
+        6. Zero MBA words: no "streamline", "empower", "leverage", "robust"
+        7. Every file path must use /app directory
+        8. Clean theme names ONLY. No brackets, no quotes, no stray characters, no trailing punctuation.
+
+        --- CROSS-TRANSCRIPT ANALYSIS (do this internally first) ---
+        For each transcript:
+        - List every pain point with speaker name
+        - Tag each with a clean theme label (e.g. Data Sync Issues)
+
+        Then across all transcripts:
+        - Count how many customers mentioned each theme
+        - Rank by frequency
+
+        --- OUTPUT STRUCTURE ---
+        Follow this EXACTLY. Every section is required.
+
+        DISCOVERY SUMMARY:
+        Total transcripts analyzed: ${transcripts.length}
+        Total unique pain points found: [X]
+        Top problems ranked:
+        1. Theme Name Here — [X]/${transcripts.length} customers
+        2. Theme Name Here — [X]/${transcripts.length} customers
+        3. Theme Name Here — [X]/${transcripts.length} customers
+
+        RECOMMENDED FEATURE: [3-7 words. noun phrase. no verbs.]
+
+        CUSTOMER JUSTIFICATION:
+        Root pain: [one sentence, what breaks in their workflow today]
+        Evidence across customers:
+        * "[verbatim quote]" — [Customer 1 name]
+        * "[verbatim quote]" — [Customer 2 name]
+        * "[verbatim quote]" — [Customer 3 name]
+        Frequency: [X] out of ${transcripts.length} customers raised this
+        Cost of inaction: [exact quote showing cost] — [speaker]
+        Signal strength: STRONG/MEDIUM/WEAK — [one sentence why]
+
+        TECHNICAL ARCHITECTURE:
+        UI:
+        - [ExactComponentName] at /app/components/[ExactName].tsx — [what it does]
+        - [ExactComponentName] at /app/components/[ExactName].tsx — [what it does]
+        Data Model:
+        - [table_name]: [column] ([type]), [column] ([type])
+        API:
+        - POST /app/api/[route]/route.ts — accepts [shape] returns [shape]
+
+        AGENT EXECUTION PLAN:
+        [ ] Task 1: "In /app/components/[ExactName].tsx, create a [ComponentName] 
+            component that accepts [exact props]. It should [exact behavior]. 
+            Use [specific existing component] for styling."
+
+        [ ] Task 2: "In /app/api/[route]/route.ts, add a [functionName] 
+            function that accepts [exact params] and returns [exact return type]."
+
+        [ ] Task 3: "Create /app/api/[newroute]/route.ts. Accept POST with 
+            body [exact shape]. Call [service]. Return [exact response shape]."
+
+        [ ] Task 4: "Update /app/db/schema to add [table/column]. 
+            Write migration. Test with [specific test case]."
+
+        --- QUALITY CHECK ---
+        Before returning, verify:
+        - Is DISCOVERY SUMMARY the very first thing in output? ✓
+        - Do I have verbatim quotes from 2+ different customers? ✓
+        - Does frequency say "[X] out of ${transcripts.length} customers"? ✓
+        - Do ALL file paths start with /app? ✓
+        - Zero MBA words anywhere? ✓
+        - Is signal strength STRONG/MEDIUM/WEAK with reasoning? ✓
+
+        If any check fails — rewrite that section before returning.
+
+        ---
+
+        EXISTING ISSUES CONTEXT (Do not duplicate work):
         ${existingIssuesContext}
 
-        SECURITY PROTOCOL:
-        1. If the document mentions keywords like 'Security', 'Login', 'Password', 'Data Leak', 'Auth', 'Privacy', or unauthorized access, you MUST:
-           - Set severity to "Critical".
-           - Include the tag "security-critical" in the labels array.
-           - Provide a detailed 'securityRisk' description.
-        2. For all issues, provide a primary classification label (e.g., 'bug', 'enhancement', 'task', 'documentation', 'question') in the labels array.
-
-        HIDDEN RISKS:
-        Identify any potential technical or business risks that aren't explicitly stated but are implied by the document.
+        RAG KNOWLEDGE BASE (Historical Context):
+        ${ragContext}
       `;
     }
 
@@ -196,7 +313,7 @@ export async function POST(req: Request) {
 
     // notifySecurityTeam logic (only for individual tickets, not batch)
     if (!isBatch && triageResult.severity === "Critical" && triageResult.labels?.includes("security-critical")) {
-      notifySecurityTeam(triageResult.title, feedback);
+      notifySecurityTeam(triageResult.title, combinedInput);
     }
 
     // Auto-save to database (silent fail if DB not configured)
@@ -212,7 +329,7 @@ export async function POST(req: Request) {
             type: isBatch ? "batch" : "individual",
             result: triageResult,
             customerTier,
-            rawFeedback: feedback,
+            rawFeedback: combinedInput,
             userEmail: userEmail,
           }),
         });
@@ -224,9 +341,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json(triageResult);
   } catch (error: any) {
-    console.error("Triage API Error:", error);
+    // 5. ERROR MASKING: Log strictly to server, return generic message to client.
+    console.error("[CRITICAL BACKEND ERROR]:", error.stack || error.message || error);
     return NextResponse.json(
-      { error: "Failed to process feedback", details: error.message },
+      { error: "Internal Server Error. Please contact the administrator or try again later." },
       { status: 500 }
     );
   }

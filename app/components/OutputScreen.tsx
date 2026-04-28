@@ -42,7 +42,7 @@ export default function OutputScreen({
                 <span className="material-symbols-outlined text-[#333333] text-3xl">terminal</span>
               </div>
               <p className="font-mono text-[10px] text-[#555555] uppercase tracking-[0.4em] font-black italic">
-                Waiting for neural signal...
+                Waiting for discovery signal...
               </p>
             </div>
           </div>

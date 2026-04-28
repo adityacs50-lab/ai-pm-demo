@@ -3,8 +3,8 @@
 import { useSession, signOut } from "next-auth/react";
 
 interface TopbarProps {
-  currentView: "INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY";
-  onViewChange: (view: "INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY") => void;
+  currentView: "INPUT" | "RESULT" | "SETTINGS" | "HISTORY";
+  onViewChange: (view: "INPUT" | "RESULT" | "SETTINGS" | "HISTORY") => void;
 }
 
 export default function Topbar({ currentView, onViewChange }: TopbarProps) {
@@ -13,7 +13,7 @@ export default function Topbar({ currentView, onViewChange }: TopbarProps) {
   return (
     <nav className="flex justify-between items-center h-14 px-6 w-full z-50 bg-[#0a0a0a] border-b border-[#222222] shrink-0">
       <div className="flex items-center gap-4">
-        <span className="font-mono font-bold text-lg tracking-tighter text-white">PM Triage AI</span>
+        <span className="font-mono font-bold text-lg tracking-tighter text-white">Cursor for PMs</span>
       </div>
       
       <div className="flex items-center gap-4">

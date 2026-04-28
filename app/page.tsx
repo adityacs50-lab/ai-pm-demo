@@ -5,55 +5,118 @@ import Topbar from "./components/Topbar";
 import Sidebar from "./components/Sidebar";
 import GitHubFeed from "./components/GitHubFeed";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession, signIn } from "next-auth/react";
 
-import BatchDashboard from "./components/BatchDashboard";
+
 import SettingsView from "./components/SettingsView";
 import HistoryView from "./components/HistoryView";
 import InputScreen from "./components/InputScreen";
 import OutputScreen from "./components/OutputScreen";
 
 export default function Home() {
-  const [feedback, setFeedback] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [transcripts, setTranscripts] = useState<string[]>([]);
+  const [currentTranscript, setCurrentTranscript] = useState("");
+
   const [mode, setMode] = useState("ENTERPRISE");
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPushing, setIsPushing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pushStatus, setPushStatus] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<"INPUT" | "RESULT" | "BATCH" | "SETTINGS" | "HISTORY">("INPUT");
+  const [currentView, setCurrentView] = useState<"INPUT" | "RESULT" | "SETTINGS" | "HISTORY">("INPUT");
+
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0a0a0a]">
+        <div className="animate-pulse w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center">
+           <span className="material-symbols-outlined text-blue-500 animate-spin">sync</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-[#0a0a0a] text-white p-6">
+        <div className="max-w-md w-full bg-[#111111] border border-[#222222] rounded-[2rem] p-10 text-center space-y-6">
+          <div className="w-16 h-16 bg-blue-600/10 mx-auto rounded-2xl flex items-center justify-center border border-blue-500/20">
+            <span className="material-symbols-outlined text-blue-500 text-3xl">lock</span>
+          </div>
+          <div>
+            <h1 className="text-2xl font-black italic uppercase tracking-tighter">Access Restricted</h1>
+            <p className="text-xs text-[#888888] mt-2 leading-relaxed">
+              The 'Cursor for PMs' Engine is currently in private beta. Please authenticate to access the discovery command center.
+            </p>
+          </div>
+          <button 
+            onClick={() => signIn("github")}
+            className="w-full bg-white text-black font-black uppercase tracking-widest text-[10px] py-4 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-3"
+          >
+            <span className="material-symbols-outlined text-[16px]">terminal</span>
+            Authenticate with GitHub
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleGenerate = async () => {
-    if (!feedback.trim() && !file) return;
+    if (transcripts.length === 0 && !currentTranscript.trim()) return;
+
+    // If there's text in the box, add it to transcripts before generating
+    const allTranscripts = currentTranscript.trim() 
+      ? [...transcripts, currentTranscript.trim()] 
+      : transcripts;
+    
+    // We update state for UX but proceed with allTranscripts
+    if (currentTranscript.trim()) {
+      setTranscripts(allTranscripts);
+      setCurrentTranscript("");
+    }
 
     setIsLoading(true);
     setError(null);
     setResult(null);
 
-    try {
-      const formData = new FormData();
-      formData.append("feedback", feedback);
-      formData.append("mode", mode.toLowerCase());
-      if (file) formData.append("file", file);
+    let attempts = 0;
+    const maxAttempts = 3;
+    let lastError = null;
 
-      const response = await fetch("/api/triage", {
-        method: "POST",
-        body: formData,
-      });
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        const formData = new FormData();
+        formData.append("transcripts", JSON.stringify(allTranscripts));
+        formData.append("mode", mode.toLowerCase());
 
-      const data = await response.json();
+        const response = await fetch("/api/triage", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to triage feedback");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to triage feedback");
+        }
+
+        setResult(data);
+        setIsLoading(false);
+        return; // Success, exit loop
+      } catch (err: any) {
+        console.error(`Attempt ${attempts} failed:`, err.message);
+        lastError = err;
+        
+        // Wait 1 second before retrying, unless it's the last attempt
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
-
-      setResult(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-      setPushStatus(null);
     }
+
+    // If we've exhausted all attempts, show the final error
+    setError(lastError?.message || "Synthesis failed due to high load. Please try again.");
+    setIsLoading(false);
   };
 
   const handleSelectHistory = async (item: any) => {
@@ -66,12 +129,8 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setResult(typeof data.full_result === 'string' ? JSON.parse(data.full_result) : data.full_result);
-        setFeedback(data.raw_feedback || "");
-        if (data.github_issue_url) {
-          setPushStatus({ url: data.github_issue_url, number: data.github_issue_number });
-        } else {
-          setPushStatus(null);
-        }
+        setTranscripts(data.raw_feedback ? [data.raw_feedback] : []);
+        setCurrentTranscript("");
       }
     } catch (err) {
       setError("Failed to load history item");
@@ -82,34 +141,10 @@ export default function Home() {
 
   const handleNewTriage = () => {
     setResult(null);
-    setFeedback("");
-    setFile(null);
-    setPushStatus(null);
+    setTranscripts([]);
+    setCurrentTranscript("");
     setError(null);
     setCurrentView("INPUT");
-  };
-
-  const handlePushToGitHub = async () => {
-    if (!result) return;
-    setIsPushing(true);
-    try {
-      const res = await fetch("/api/github/issue", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: result.title,
-          severity: result.severity,
-          acceptanceCriteria: result.acceptanceCriteria,
-          labels: result.labels,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) setPushStatus({ url: data.issueUrl, number: data.issueNumber });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsPushing(false);
-    }
   };
 
   return (
@@ -136,35 +171,27 @@ export default function Home() {
               >
                 <div className="w-full md:w-[45%] h-full">
                   <InputScreen 
-                    feedback={feedback}
-                    setFeedback={setFeedback}
-                    file={file}
-                    setFile={setFile}
+                    transcripts={transcripts}
+                    setTranscripts={setTranscripts}
+                    currentTranscript={currentTranscript}
+                    setCurrentTranscript={setCurrentTranscript}
+
                     mode={mode}
                     setMode={setMode}
                     onGenerate={handleGenerate}
                     isLoading={isLoading}
+                    error={error}
                   />
                 </div>
                 <div className="w-full md:w-[55%] h-full">
                   <OutputScreen 
                     ticket={result}
                     onBack={() => {}} // No longer used in split view
-                    onPushToGitHub={handlePushToGitHub}
-                    isPushing={isPushing}
-                    pushStatus={pushStatus}
+                    onPushToGitHub={() => {}}
+                    isPushing={false}
+                    pushStatus={null}
                   />
                 </div>
-              </motion.div>
-            ) : currentView === "BATCH" ? (
-              <motion.div 
-                key="batch"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex-1 h-full overflow-y-auto"
-              >
-                <BatchDashboard />
               </motion.div>
             ) : currentView === "HISTORY" ? (
               <motion.div 
