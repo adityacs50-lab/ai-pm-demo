@@ -1,46 +1,48 @@
-# ⚡ TRIAGE: AI PM Command Center (God Mode)
+# ⚡ Cursor for Product Managers
 
-![Banner](https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2832&auto=format&fit=crop)
+<div align="center">
+  <img src="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2832&auto=format&fit=crop" alt="Cursor for PMs Banner" style="border-radius: 12px; margin-bottom: 24px;" />
+</div>
 
-> **Transform raw, messy customer signals into surgical engineering tickets.** Built for Senior PMs and Engineering Leads who need "God Mode" over their product feedback.
+> **The missing Product Management layer for Agentic Engineering.** Convert messy customer interviews into surgical, cross-validated execution plans for AI coding agents.
 
----
-
-## 🎨 Design Philosophy
-Triage follows the **"Linear + Raycast"** aesthetic:
-- **Dark Mode First**: #0a0a0f canvas with 40px surgical grid.
-- **Glassmorphism**: Backdrop blurs and subtle white borders for a premium depth.
-- **Motion Engine**: Framer Motion transitions for every state change.
-- **Typography**: Syne (UI) and JetBrains Mono (Technical Metadata).
+Built in response to the [Y Combinator RFS: Cursor for Product Managers](https://www.ycombinator.com/rfs#cursor-for-product-managers).
 
 ---
 
-## 🚀 Core Capabilities
+## 🚀 The Problem
 
-### 🧠 Multimodal Triage Engine
-Powered by **Gemini 2.5 Flash**, the Command Center ingests:
-- **Raw Text**: Messy rants, Slack screenshots, and vague complaints.
-- **Multimodal Files**: PDFs, Excel sheets, CSVs, and even **Video Transcripts**.
-- **Agentic Output**: Structured JSON with Title, Severity, Business Impact (MRR at Risk), and full PRD generation.
+AI tools like **Cursor** and **Claude Code** are incredible at building software *once it's clear what needs to be built*. But writing code is only 50% of the battle.
 
-### 🛠️ Strategic Connectors
-- **GitHub**: One-click "Push to Issue" with automatic labeling.
-- **Slack**: Inbound webhook forwarding for live customer signals.
-- **Zoom**: Automatic recording ingestion for meeting-to-ticket workflows.
-- **Real-Time Feed**: A live sidecar displaying global engineering activity.
+Figuring out what to build requires reading raw user feedback, tracking cross-customer pain points, and writing precise engineering specs. Currently, there is no system designed to seamlessly link qualitative customer discovery with agentic code generation.
 
-### 📊 Batch Analytics
-Panoramic view of high-volume feedback. Identify clusters of pain points and calculate the **Total MRR at Risk** across your entire user base.
+## 🧠 Multi-Transcript Discovery Engine
+
+**Cursor for PMs** solves the "What to build" problem by acting as an AI Principal Product Engineer.
+
+- **Cross-Customer Synthesis:** Drop in `N` number of raw customer transcripts. The Discovery Engine processes them simultaneously to find recurring patterns across different users.
+- **High Signal, Zero Fluff:** Generates specifications using strictly verbatim quotes, ranked by frequency. Zero MBA jargon allowed.
+- **Agent-Ready Output:** Automatically breaks down the most requested feature into a concrete `AGENT EXECUTION PLAN` with precise `/app` directory file paths so you can copy-paste directly into Cursor.
+
+---
+
+## 🎨 Interface & UX
+
+Designed to feel like a high-end developer tool, not another generic SaaS dashboard:
+- **Dark Mode First**: Deep `#0a0a0a` canvas with subtle borders for premium depth.
+- **Split-Pane Architecture**: Left side for data ingestion, right side for generated specifications.
+- **Strictly Typed UI**: Everything from the UI to the AI system prompt enforces strict constraints to prevent hallucinations.
 
 ---
 
 ## 🛠️ Tech Stack
-- **Framework**: [Next.js 14 (App Router)](https://nextjs.org/)
-- **AI Engine**: [Google Gemini 2.5 Flash](https://ai.google.dev/)
+
+- **Framework**: [Next.js App Router](https://nextjs.org/)
+- **Intelligence**: [Google Gemini 2.5 Flash](https://ai.google.dev/) (Strict JSON Schema + Prompt Engineering)
 - **Database**: [Neon Postgres (Serverless)](https://neon.tech/)
-- **Auth**: [NextAuth.js v5](https://next-auth.js.org/)
+- **Auth**: [NextAuth.js (GitHub Provider)](https://next-auth.js.org/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **Animations**: [Framer Motion](https://www.framer.com/motion/)
+- **Deployment**: [Vercel](https://vercel.com/)
 
 ---
 
@@ -60,13 +62,9 @@ Create a `.env.local` file with the following:
 GEMINI_API_KEY=your_key
 DATABASE_URL=your_neon_url
 
-# Integrations
-GITHUB_PAT=your_pat
-GITHUB_OWNER=your_username
-GITHUB_REPO=your_repo
-
 # Auth
 NEXTAUTH_SECRET=your_secret
+NEXTAUTH_URL=http://localhost:3000
 GITHUB_CLIENT_ID=your_id
 GITHUB_CLIENT_SECRET=your_secret
 ```
@@ -75,16 +73,10 @@ GITHUB_CLIENT_SECRET=your_secret
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) and enter **God Mode**.
-
----
-
-## 🔒 Security Protocol
-- **Auto-Escalation**: System triggers CRITICAL priority on PII or vulnerability detection.
-- **Multi-User Isolation**: Database level security ensuring users only see their own triage history.
+Open [http://localhost:3000](http://localhost:3000) to start your first Discovery Session.
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ for Y Combinator by Aditya & Antigravity</sub>
+  <sub>Built with ❤️ for the Y Combinator Application by Aditya & Antigravity</sub>
 </div>
