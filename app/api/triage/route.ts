@@ -161,11 +161,12 @@ export async function POST(req: Request) {
             type: SchemaType.OBJECT,
             properties: {
               feature: { type: SchemaType.STRING, description: "The feature requested." },
+              theme: { type: SchemaType.STRING, description: "Theme of the feature request, grouping related signals under the same theme (e.g., 'Enterprise Readiness', 'Data & Reporting', 'Mobile Reliability')." },
               mentionCount: { type: SchemaType.NUMBER, description: "Number of times requested." },
               requestedBy: { type: SchemaType.STRING, description: "The speaker or customer who requested it." },
               businessContext: { type: SchemaType.STRING, description: "The business context or why they need it." }
             },
-            required: ["feature", "mentionCount", "requestedBy", "businessContext"]
+            required: ["feature", "theme", "mentionCount", "requestedBy", "businessContext"]
           }
         }
       },
@@ -295,7 +296,7 @@ export async function POST(req: Request) {
             Write migration. Test with [specific test case]."
 
         BACKLOG SIGNALS:
-        List all feature requests found in the transcripts, no matter how they are phrased. Include the feature, mention count, who requested it, and the business context.
+        List all feature requests found in the transcripts, no matter how they are phrased. Group related signals under the same clean theme (e.g., 'Enterprise Readiness', 'Data & Reporting', 'Mobile Reliability'). Include the feature, theme, mention count, who requested it, and the business context.
 
         --- QUALITY CHECK ---
         Before returning, verify:

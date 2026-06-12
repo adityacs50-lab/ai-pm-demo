@@ -145,9 +145,16 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
               <div key={i} className="flex flex-col gap-1 p-4 hover:bg-[#161616] transition-colors group">
                 <div className="flex items-start justify-between gap-4">
                   <p className="font-mono text-[12px] text-[#cccccc] leading-relaxed">"{signal.feature}"</p>
-                  <span className="shrink-0 font-mono text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full whitespace-nowrap mt-0.5">
-                    Mentions: {signal.mentionCount}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {signal.theme && (
+                      <span className="font-mono text-[10px] text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        {signal.theme}
+                      </span>
+                    )}
+                    <span className="font-mono text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      Mentions: {signal.mentionCount}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-[10px] text-[#555555] uppercase tracking-wider">{signal.requestedBy}</span>
