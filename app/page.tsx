@@ -190,6 +190,7 @@ export default function Home() {
                     onPushToGitHub={() => {}}
                     isPushing={false}
                     pushStatus={null}
+                    transcripts={transcripts}
                   />
                 </div>
               </motion.div>

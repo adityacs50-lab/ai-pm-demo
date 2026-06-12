@@ -11,10 +11,34 @@ interface TicketCardProps {
   onPushToGitHub: () => void;
   isPushing: boolean;
   pushStatus: any;
+  transcripts?: string[];
 }
 
-export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStatus }: TicketCardProps) {
+export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStatus, transcripts }: TicketCardProps) {
   if (!ticket) return null;
+
+  let discoverySummary = ticket.discoverySummary || "";
+  let customerJustification = ticket.customerJustification || "No justification provided.";
+  let technicalArchitecture = ticket.technicalArchitecture || "";
+
+  if (discoverySummary) {
+    discoverySummary = discoverySummary.replace(/\n+/g, '\n\n');
+  }
+
+  if (technicalArchitecture) {
+    technicalArchitecture = technicalArchitecture.replace(/\n+/g, '\n\n');
+  }
+
+  if (customerJustification !== "No justification provided.") {
+    customerJustification = customerJustification.replace(/\n+/g, '\n\n');
+    const totalTranscripts = transcripts?.length || 0;
+    if (totalTranscripts > 0 && totalTranscripts < 3) {
+      customerJustification = customerJustification.replace(
+        /Frequency:.*?(?=\n|$)/gi,
+        "Signal strength: Single source — add more transcripts to validate"
+      );
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -53,7 +77,7 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
           </div>
           <div className="prose prose-invert prose-sm max-w-none prose-p:text-[#aaaaaa] prose-li:text-[#aaaaaa] prose-strong:text-[#ffffff]">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {ticket.discoverySummary}
+              {discoverySummary}
             </ReactMarkdown>
           </div>
         </div>
@@ -68,7 +92,7 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
           <h3 className="font-label-caps text-label-caps text-[#888888] mb-2">THE "WHY" (CUSTOMER JUSTIFICATION)</h3>
           <div className="font-body-muted text-[13px] text-[#aaaaaa] leading-relaxed italic border-l-2 border-[#333] pl-4 prose prose-invert prose-sm">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {ticket.customerJustification || "No justification provided."}
+              {customerJustification}
             </ReactMarkdown>
           </div>
         </div>
@@ -83,7 +107,7 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
           </div>
           <div className="prose prose-invert prose-sm max-w-none prose-p:text-[#cccccc] prose-li:text-[#cccccc] prose-strong:text-[#ffffff] prose-code:text-[#60a5fa] prose-code:bg-[#60a5fa]/10 prose-code:px-1 prose-code:rounded">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {ticket.technicalArchitecture}
+              {technicalArchitecture}
             </ReactMarkdown>
           </div>
         </div>
@@ -99,7 +123,7 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
           {ticket.agentTasks?.map((task: string, i: number) => (
             <div key={i} className="flex items-start gap-4 p-4 hover:bg-[#161616] transition-colors group">
               <span className="font-mono text-[10px] text-[#555555] pt-0.5 mt-1 bg-[#222] px-2 py-0.5 rounded-full group-hover:text-blue-400 group-hover:bg-blue-500/10 transition-colors">Task {(i+1)}</span>
-              <p className="font-mono text-[12px] text-[#cccccc] leading-relaxed">{task}</p>
+              <p className="font-mono text-[12px] text-[#cccccc] leading-relaxed whitespace-pre-wrap">{task}</p>
             </div>
           ))}
         </div>
@@ -108,6 +132,33 @@ export default function TicketCard({ ticket, onPushToGitHub, isPushing, pushStat
       {/* PRD Card removed per V1 spec */}
 
       {/* Sync Card removed per V1 spec */}
+
+      {/* Backlog Signals Card */}
+      {ticket.backlogSignals && ticket.backlogSignals.length > 0 && (
+        <div className="bg-[#111111] border border-[#222222] rounded-[12px] overflow-hidden flex flex-col mt-6">
+          <div className="bg-[#1a1a1a] px-6 py-3 border-b border-[#222222] flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-[#888888]">list_alt</span>
+            <h3 className="font-label-caps text-label-caps text-[#dddddd]">BACKLOG SIGNALS</h3>
+          </div>
+          <div className="divide-y divide-[#222222]/50">
+            {ticket.backlogSignals.map((signal: any, i: number) => (
+              <div key={i} className="flex flex-col gap-1 p-4 hover:bg-[#161616] transition-colors group">
+                <div className="flex items-start justify-between gap-4">
+                  <p className="font-mono text-[12px] text-[#cccccc] leading-relaxed">"{signal.feature}"</p>
+                  <span className="shrink-0 font-mono text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full whitespace-nowrap mt-0.5">
+                    Mentions: {signal.mentionCount}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[10px] text-[#555555] uppercase tracking-wider">{signal.requestedBy}</span>
+                  <span className="text-[#333333]">•</span>
+                  <span className="text-[10px] text-[#555555] italic">{signal.businessContext}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

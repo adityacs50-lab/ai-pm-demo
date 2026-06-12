@@ -10,6 +10,7 @@ interface OutputScreenProps {
   onPushToGitHub: () => void;
   isPushing: boolean;
   pushStatus: any;
+  transcripts?: string[];
 }
 
 export default function OutputScreen({
@@ -17,7 +18,8 @@ export default function OutputScreen({
   onBack,
   onPushToGitHub,
   isPushing,
-  pushStatus
+  pushStatus,
+  transcripts
 }: OutputScreenProps) {
   return (
     <section className="w-full h-full bg-[#0a0a0a] flex flex-col relative overflow-y-auto">
@@ -30,6 +32,7 @@ export default function OutputScreen({
           >
             <TicketCard 
               ticket={ticket}
+              transcripts={transcripts}
               onPushToGitHub={onPushToGitHub}
               isPushing={isPushing}
               pushStatus={pushStatus}

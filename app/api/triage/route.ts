@@ -153,9 +153,23 @@ export async function POST(req: Request) {
           type: SchemaType.ARRAY, 
           description: "Specific development tasks for AGENT EXECUTION PLAN.",
           items: { type: SchemaType.STRING } 
+        },
+        backlogSignals: {
+          type: SchemaType.ARRAY,
+          description: "All feature requests found in the transcripts, even minor ones, however phrased.",
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              feature: { type: SchemaType.STRING, description: "The feature requested." },
+              mentionCount: { type: SchemaType.NUMBER, description: "Number of times requested." },
+              requestedBy: { type: SchemaType.STRING, description: "The speaker or customer who requested it." },
+              businessContext: { type: SchemaType.STRING, description: "The business context or why they need it." }
+            },
+            required: ["feature", "mentionCount", "requestedBy", "businessContext"]
+          }
         }
       },
-      required: ["discoverySummary", "title", "customerJustification", "technicalArchitecture", "agentTasks"],
+      required: ["discoverySummary", "title", "customerJustification", "technicalArchitecture", "agentTasks", "backlogSignals"],
     };
 
     // Define the batch clustering schema for "Cursor for PMs"
@@ -279,6 +293,9 @@ export async function POST(req: Request) {
 
         [ ] Task 4: "Update /app/db/schema to add [table/column]. 
             Write migration. Test with [specific test case]."
+
+        BACKLOG SIGNALS:
+        List all feature requests found in the transcripts, no matter how they are phrased. Include the feature, mention count, who requested it, and the business context.
 
         --- QUALITY CHECK ---
         Before returning, verify:
